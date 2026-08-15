@@ -13,6 +13,34 @@ import { CAMPAIGNS } from '../data/campaigns.js';
 
 const MAP_SIZE = 200;       // 地图边长(米)
 const TERRAIN_SEG = 128;    // 地形分段
+// 可通行地面高度范围: 海面(-0.3)以下禁行, 陡崖(>8)以上也禁行
+const WALKABLE_Y_MIN = -0.15;
+const WALKABLE_Y_MAX = 7;
+
+// 判断地面点是否可通行
+function _isGroundWalkable(x, z, world) {
+  const gh = world.getGroundHeight(x, z);
+  return gh >= WALKABLE_Y_MIN && gh <= WALKABLE_Y_MAX;
+}
+
+// 螺旋扫描: 从 (cx,cz) 出发找最近的可通行点, 找不到返回原坐标
+function _findNearestWalkable(cx, cz, world, maxR = 30) {
+  if (_isGroundWalkable(cx, cz, world)) return { x: cx, z: cz };
+  const step = 1.5; // 搜索步长(米)
+  for (let r = step; r <= maxR; r += step) {
+    // 8 个方向采样, 半径 r
+    for (let i = 0; i < 16; i++) {
+      const ang = (i / 16) * Math.PI * 2;
+      const x = cx + Math.cos(ang) * r;
+      const z = cz + Math.sin(ang) * r;
+      if (_isGroundWalkable(x, z, world) &&
+          Math.abs(x) <= 95 && Math.abs(z) <= 95) {
+        return { x, z };
+      }
+    }
+  }
+  return { x: cx, z: cz }; // 实在找不到就不动
+}
 
 export class World {
   constructor(scene, campaign, audio) {
@@ -1033,13 +1061,12 @@ export class World {
 
   // ========== 碰撞 ==========
   collidePlayer(pos, height) {
-    // 简易: 阻止穿过障碍 AABB(水平)
+    // 1. 障碍 AABB (水平)
     const half = 0.4;
     for (const ob of this.obstacles) {
       if (pos.y + height < ob.box.min.y || pos.y > ob.box.max.y) continue;
       if (pos.x > ob.box.min.x - half && pos.x < ob.box.max.x + half &&
           pos.z > ob.box.min.z - half && pos.z < ob.box.max.z + half) {
-        // 推出(最近边)
         const dxL = pos.x - (ob.box.min.x - half);
         const dxR = (ob.box.max.x + half) - pos.x;
         const dzL = pos.z - (ob.box.min.z - half);
@@ -1051,8 +1078,16 @@ export class World {
         else pos.z = ob.box.max.z + half;
       }
     }
-    // 地图边界
-    pos.x = clamp(pos.x, -95, 95); pos.z = clamp(pos.z, -95, 95);
+
+    // 2. 地形通行性限制: 水面 / 陡崖 禁行, 自动推回最近可通行点
+    if (!_isGroundWalkable(pos.x, pos.z, this)) {
+      const pt = _findNearestWalkable(pos.x, pos.z, this);
+      pos.x = pt.x; pos.z = pt.z;
+    }
+
+    // 3. 地图硬边界
+    pos.x = clamp(pos.x, -95, 95);
+    pos.z = clamp(pos.z, -95, 95);
   }
   collideSoldier(pos, height) { this.collidePlayer(pos, height); }
 
