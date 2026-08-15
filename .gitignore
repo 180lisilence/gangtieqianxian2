@@ -7,21 +7,12 @@ pnpm-debug.log*
 .npmrc.local
 
 # ========== Electron 打包产物 ==========
-dist/
-dist2/
-dist3/
-dist4/
-dist5/
+dist*/
 out/
 release/
 *.exe
 *.blockmap
 *.yml
-
-# ========== Java Launcher ==========
-launcher/target/
-launcher/*.iml
-launcher/.idea/
 
 # ========== 二进制音频资源 (用户自备, 不属于源代码) ==========
 audio/**/*.mp3

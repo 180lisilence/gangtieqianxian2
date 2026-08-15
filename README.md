@@ -212,8 +212,7 @@ gangtieqianxian2/
 │
 ├── play.bat                   开发启动脚本（双击）
 ├── build.bat                  打包脚本（双击）
-├── run_dev.bat                开发服务器（可选，用于 HTML 调试）
-├── server.js                  静态文件服务器（开发期用）
+├── server.js                  静态文件服务器（开发期 HTML 调试用）
 │
 ├── electron/
 │   └── main.js                Electron 主进程（BrowserWindow）
@@ -261,9 +260,6 @@ gangtieqianxian2/
 │
 ├── css/
 │   └── style.css              全部 UI 样式
-│
-├── launcher/                  Java 启动器（可选，旧版遗留）
-│   └── src/main/java/...
 │
 └── test/
     ├── setup.js               Vitest + jsdom mock

@@ -1,26 +1,15 @@
-@echo off
-cd /d "%~dp0"
+@echo off & cd /d "%~dp0"
 
+:: 依赖检查（首次运行自动安装）
 if not exist "node_modules\three" (
-    echo [First run] Installing dependencies...
-    call npm install
-    if errorlevel 1 (
-        echo npm install failed. Run it manually.
-        pause
-        exit /b 1
-    )
+  echo [首次运行] 正在安装依赖...
+  call npm install || (echo 安装失败，请手动执行 npm install & pause & exit /b 1)
 )
 
-echo Building Steel Frontline EXE...
-call npm run dist
-if errorlevel 1 (
-    echo Build failed.
-    pause
-    exit /b 1
-)
+echo 正在打包钢铁前线 EXE...
+call npm run dist || (echo 打包失败 & pause & exit /b 1)
 
 echo.
-echo === Build done. Check dist5\ folder ===
-dir /b dist5\*.exe 2>nul
-echo.
+echo [完成] 产物在 dist5\ 目录下:
+dir /b dist5\*.exe 2>nul || echo (未找到 exe)
 pause
