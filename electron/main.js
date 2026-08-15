@@ -1,14 +1,36 @@
 // electron/main.js
 // 钢铁前线 · Electron 主进程
+// ⚠️ 必须先启动本地 HTTP server (因为 ES Modules + fetch 音频不能用 file://)
 const { app, BrowserWindow, Menu } = require('electron');
 const path = require('path');
+const { start: startServer } = require('../server.js');
 
 // 关闭应用菜单栏(游戏不需要)
 Menu.setApplicationMenu(null);
 
 let mainWindow = null;
+let devServer = null;
 
-function createWindow() {
+async function createWindow() {
+  // 启动本地静态文件服务器 (Electron 渲染进程需要 http:// 协议才能 fetch ES Modules 和 mp3)
+  // 端口冲突时自动试下一个
+  let port = 8000;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      const result = await startServer(port + attempt);
+      devServer = result.server;
+      port = result.port;
+      break;
+    } catch (e) {
+      console.warn('[electron] port ' + (port + attempt) + ' busy, trying ' + (port + attempt + 1));
+    }
+  }
+  if (!devServer) {
+    console.error('[electron] failed to start dev server after 5 attempts');
+    app.quit();
+    return;
+  }
+
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 720,
@@ -27,8 +49,8 @@ function createWindow() {
     },
   });
 
-  // 加载游戏入口
-  mainWindow.loadFile(path.join(__dirname, '..', 'index.html'));
+  // ⚠️ 用 HTTP URL, 不是 loadFile (否则 file:// 下 fetch mp3 会被 Chromium abort)
+  mainWindow.loadURL('http://localhost:' + port + '/index.html');
 
   // 准备就绪后显示
   mainWindow.once('ready-to-show', () => {
