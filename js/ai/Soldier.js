@@ -280,12 +280,32 @@ export class Soldier {
     const base = this.position.clone();
     const pts = [];
     for (let i = 0; i < count; i++) {
-      const ang = (i / count) * Math.PI * 2 + randRange(-0.3, 0.3);
-      const r = randRange(15, 35);
-      const x = base.x + Math.cos(ang) * r;
-      const z = base.z + Math.sin(ang) * r;
-      const y = this.world.getGroundHeight(x, z);
-      pts.push(new THREE.Vector3(x, y, z));
+      let tries = 0;
+      while (tries < 12) {
+        const ang = (i / count) * Math.PI * 2 + randRange(-0.3, 0.3);
+        const r = randRange(15, 35);
+        const x = base.x + Math.cos(ang) * r;
+        const z = base.z + Math.sin(ang) * r;
+        tries++;
+        // ✅ 跳过水面/陡崖/边界外 — 找最近可通行点
+        if (this.world.isWalkable(x, z)) {
+          const y = this.world.getGroundHeight(x, z);
+          pts.push(new THREE.Vector3(x, y, z));
+          break;
+        }
+        // 不行就尝试找附近最近的可通行点
+        const fixed = this.world.findNearestWalkable(x, z);
+        if (fixed.x !== x || fixed.z !== z) {
+          const y = this.world.getGroundHeight(fixed.x, fixed.z);
+          pts.push(new THREE.Vector3(fixed.x, y, fixed.z));
+          break;
+        }
+      }
+    }
+    // 保底: 如果所有点都失败, 用当前位置附近
+    if (pts.length === 0) {
+      const y = this.world.getGroundHeight(base.x, base.z);
+      pts.push(new THREE.Vector3(base.x + 10, y, base.z + 10));
     }
     this._patrolPoints = pts;
     this._patrolIdx = 0;
@@ -338,11 +358,22 @@ export class Soldier {
   }
 
   _flankPos(targetPos) {
-    // 侧翼位置: 目标侧方 15-25 米
-    const ang = randPick([-1, 1]) * randRange(1.0, 1.6);
-    const dx = Math.cos(ang) * 20;
-    const dz = Math.sin(ang) * 20;
-    return new THREE.Vector3(targetPos.x + dx, 0, targetPos.z + dz);
+    // 侧翼位置: 目标侧方 15-25 米, 自动跳到可通行地面
+    for (let t = 0; t < 6; t++) {
+      const side = t < 3 ? -1 : 1;
+      const ang = randRange(1.0, 1.6) * side;
+      const dx = Math.cos(ang) * 20;
+      const dz = Math.sin(ang) * 20;
+      let fx = targetPos.x + dx, fz = targetPos.z + dz;
+      if (!this.world.isWalkable(fx, fz)) {
+        const fixed = this.world.findNearestWalkable(fx, fz);
+        fx = fixed.x; fz = fixed.z;
+      }
+      if (this.world.isWalkable(fx, fz)) {
+        return new THREE.Vector3(fx, 0, fz);
+      }
+    }
+    return this.position.clone(); // 保底: 原地
   }
 
   _objectivePos() {
@@ -551,11 +582,17 @@ export class Soldier {
     } else if (this.state === 'advance' || this.state === 'search') {
       target = this.moveTarget;
       if (target && this.position.distanceTo(target) < 4) {
-        this.moveTarget = this.state === 'search'
+        let newTarget = this.state === 'search'
           ? (this.lastSeenTargetPos
               ? this.lastSeenTargetPos.clone().add(new THREE.Vector3(randRange(-6,6),0,randRange(-6,6)))
               : this._objectivePos())
           : this._objectivePos();
+        // 跳到可通行地面
+        if (!this.world.isWalkable(newTarget.x, newTarget.z)) {
+          const fixed = this.world.findNearestWalkable(newTarget.x, newTarget.z);
+          newTarget.x = fixed.x; newTarget.z = fixed.z;
+        }
+        this.moveTarget = newTarget;
       }
     } else if (this.state === 'patrol') {
       // 巡逻: 到达当前路点后停留 1.5-4 秒,再切下一个

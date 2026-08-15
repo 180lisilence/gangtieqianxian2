@@ -11,6 +11,9 @@ export function createMockWorld(opts = {}) {
     scene: { add() {}, remove() {} },
     // 平地地形, 高度恒 0
     getGroundHeight: () => 0,
+    // 默认: 地面高度 0 (可通行), 边界内 (±95)
+    isWalkable: () => true,
+    findNearestWalkable: (x, z) => ({ x, z }),
     // 默认无遮挡(射线不命中实体), 返回 null 表示视线通畅
     raycast: () => null,
     objectives: opts.objectives || [],

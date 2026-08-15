@@ -1080,8 +1080,8 @@ export class World {
     }
 
     // 2. 地形通行性限制: 水面 / 陡崖 禁行, 自动推回最近可通行点
-    if (!_isGroundWalkable(pos.x, pos.z, this)) {
-      const pt = _findNearestWalkable(pos.x, pos.z, this);
+    if (!this.isWalkable(pos.x, pos.z)) {
+      const pt = this.findNearestWalkable(pos.x, pos.z);
       pos.x = pt.x; pos.z = pt.z;
     }
 
@@ -1090,6 +1090,25 @@ export class World {
     pos.z = clamp(pos.z, -95, 95);
   }
   collideSoldier(pos, height) { this.collidePlayer(pos, height); }
+
+  // ========== 公开: 可通行性 (AI 寻路用) ==========
+  isWalkable(x, z) {
+    const gh = this.getGroundHeight(x, z);
+    return gh >= WALKABLE_Y_MIN && gh <= WALKABLE_Y_MAX
+        && Math.abs(x) <= 95 && Math.abs(z) <= 95;
+  }
+  findNearestWalkable(cx, cz) {
+    if (this.isWalkable(cx, cz)) return { x: cx, z: cz };
+    // 轻量缓存: 同一坐标 0.5s 内复用上次结果
+    const now = performance.now();
+    const key = Math.round(cx * 10) + ',' + Math.round(cz * 10);
+    if (this._walkCache?.key === key && now - this._walkCache.t < 500) {
+      return { x: this._walkCache.x, z: this._walkCache.z };
+    }
+    const pt = _findNearestWalkable(cx, cz, this);
+    this._walkCache = { key, t: now, x: pt.x, z: pt.z };
+    return pt;
+  }
 
   // ========== 射线检测 ==========
   // 返回 { point, normal, soldier, headshot, limb, object }
