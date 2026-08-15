@@ -184,6 +184,9 @@ export class PlayerController {
     this.position.x += this.velocity.x * dt;
     this.position.z += this.velocity.z * dt;
 
+    // ⚠️ 先跑碰撞! 必须在 groundHeight 之前, 否则水面/边界推回后 y 会错位
+    if (this.world) this.world.collidePlayer(this.position, this.currentHeight());
+
     // 简单地面跟随 + 场景碰撞
     const groundH = this.world ? this.world.getGroundHeight(this.position.x, this.position.z) : 0;
     const targetY = groundH + this.currentHeight();
@@ -206,9 +209,6 @@ export class PlayerController {
       this.position.y = newY;
       this.onGround = false;
     }
-
-    // 场景障碍碰撞(简易球-盒检测), 由 world 处理
-    if (this.world) this.world.collidePlayer(this.position, this.currentHeight());
 
     // 脚步触发
     const hspeed = Math.hypot(this.velocity.x, this.velocity.z);

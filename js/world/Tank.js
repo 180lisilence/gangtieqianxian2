@@ -99,10 +99,12 @@ export class Tank {
     // 前进方向: (-sin, 0, -cos)
     this.position.x += -sin * this.velocity * dt;
     this.position.z += -cos * this.velocity * dt;
-    this.position.y = damp(this.position.y, this.world.getGroundHeight(this.position.x, this.position.z), 10, dt);
 
-    // 碰撞
+    // ⚠️ 先碰撞! 必须在 getGroundHeight 之前, 否则水面/边界推回后 y 错位
     this.world.collidePlayer(this.position, 3);
+
+    // 地形跟随 (用碰撞修正后的坐标)
+    this.position.y = damp(this.position.y, this.world.getGroundHeight(this.position.x, this.position.z), 10, dt);
 
     this.mesh.position.copy(this.position);
     this.mesh.rotation.y = this.hullYaw;

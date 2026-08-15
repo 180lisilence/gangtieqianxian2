@@ -1,0 +1,6 @@
+starting Steel Frontline...
+
+> steel-frontline@1.0.0 start
+> electron .
+
+

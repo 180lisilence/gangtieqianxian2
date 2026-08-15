@@ -628,12 +628,12 @@ export class Soldier {
     this.position.x += this.velocity.x * dt;
     this.position.z += this.velocity.z * dt;
 
-    // 地形跟随
+    // ⚠️ 先碰撞! 必须在 getGroundHeight 之前, 否则水面/边界推回后 y 错位
+    if (this.world.collideSoldier) this.world.collideSoldier(this.position, STAND_H);
+
+    // 地形跟随 (用碰撞修正后的坐标)
     const g = this.world.getGroundHeight(this.position.x, this.position.z);
     this.position.y = damp(this.position.y, g, 18, dt);
-
-    // 场景碰撞
-    if (this.world.collideSoldier) this.world.collideSoldier(this.position, STAND_H);
 
     // 朝向平滑
     this.yaw = smoothAngle(this.yaw, this.targetYaw, 1 - Math.exp(-8 * dt));
