@@ -1,10 +1,18 @@
-@echo off & cd /d "%~dp0"
+@echo off
+cd /d "%~dp0"
 
-:: 依赖检查（首次运行自动安装）
+rem === Dependency check (auto install on first run) ===
 if not exist "node_modules\three" (
-  echo [首次运行] 正在安装依赖...
-  call npm install || (echo 安装失败，请手动执行 npm install & pause & exit /b 1)
+  echo [first run] installing dependencies...
+  call npm install
+  if errorlevel 1 goto :err_install
 )
 
-echo 正在启动钢铁前线...
+echo starting Steel Frontline...
 call npm start
+goto :eof
+
+:err_install
+echo [FAIL] npm install failed. Run it manually and try again.
+pause
+exit /b 1
