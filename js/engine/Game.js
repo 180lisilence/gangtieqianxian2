@@ -32,6 +32,7 @@ export class Game {
     this.audio = new AudioManager(this.camera);
     this.hud = new HUD();
     this.menu = new MainMenu();
+    this.menu.bindAudio(this.audio);   // 让主菜单能调音量
 
     this.renderer = null;
     this.world = null;

@@ -19,7 +19,12 @@ export class MainMenu {
       bloom: document.getElementById('bloom'),
       shadows: document.getElementById('shadows'),
       startBtn: document.getElementById('startBtn'),
+      // 音量设置
+      masterVolume: document.getElementById('masterVolume'),
+      volumeVal: document.getElementById('volumeVal'),
+      muteToggle: document.getElementById('muteToggle'),
     };
+    this.audio = null;  // AudioManager 引用, 由 bindAudio 注入
     this.selection = {
       campaign: 'normandy',
       faction: 'us',
@@ -33,6 +38,18 @@ export class MainMenu {
     this._renderFactions();
     this._renderWeapons();
     this._bindSettings();
+  }
+
+  // 注入 AudioManager (Game 构造时调)
+  bindAudio(audio) {
+    this.audio = audio;
+    // 初始化滑杆/静音状态 (从 localStorage 读取的值)
+    if (audio) {
+      const vol = Math.round(audio.getVolume() * 100);
+      if (this.el.masterVolume) this.el.masterVolume.value = vol;
+      if (this.el.volumeVal) this.el.volumeVal.textContent = vol;
+      if (this.el.muteToggle) this.el.muteToggle.checked = audio.isMuted();
+    }
   }
 
   show() { this.el.menu.classList.remove('hidden'); }
@@ -113,6 +130,21 @@ export class MainMenu {
     this.el.bloom.onchange = () => { this.selection.bloom = this.el.bloom.checked; };
     this.el.shadows.onchange = () => { this.selection.shadows = this.el.shadows.checked; };
     this.el.motionBlur.onchange = () => { this.selection.motionBlur = this.el.motionBlur.checked; };
+
+    // 音量滑杆
+    if (this.el.masterVolume) {
+      this.el.masterVolume.oninput = () => {
+        const v = parseInt(this.el.masterVolume.value, 10);
+        if (this.el.volumeVal) this.el.volumeVal.textContent = v;
+        if (this.audio) this.audio.setVolume(v / 100);
+      };
+    }
+    // 静音开关
+    if (this.el.muteToggle) {
+      this.el.muteToggle.onchange = () => {
+        if (this.audio) this.audio.setMuted(this.el.muteToggle.checked);
+      };
+    }
   }
 
   getSelection() {

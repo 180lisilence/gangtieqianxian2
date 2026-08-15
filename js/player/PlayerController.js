@@ -23,6 +23,10 @@ const SPEED = {
   ads: 2.4,          // 瞄准时移动
 };
 
+// 物理常量
+const GRAVITY = 22.0;        // 重力加速度 m/s² (比真实大一点让手感干脆)
+const JUMP_VELOCITY = 8.5;   // 起跳速度 m/s
+
 export class PlayerController {
   constructor(camera, scene, input, world) {
     this.camera = camera;
@@ -33,6 +37,8 @@ export class PlayerController {
     // 状态
     this.position = new THREE.Vector3(0, STAND_HEIGHT, 0);
     this.velocity = new THREE.Vector3();
+    this.velocity.y = 0;
+    this.onGround = true;       // 是否在地面上
     this.yaw = 0;              // 水平朝向(弧度)
     this.pitch = 0;            // 俯仰(弧度)
     this.stance = 'stand';     // stand / crouch / prone
@@ -114,6 +120,12 @@ export class PlayerController {
       this._applyStance();
     }
 
+    // 跳跃 (仅站立时可跳, 且必须在地面)
+    if (input.justPressed('Space') && this.onGround && this.stance === 'stand') {
+      this.velocity.y = JUMP_VELOCITY;
+      this.onGround = false;
+    }
+
     // 走路/疾跑模式切换 (Ctrl)
     if (input.justPressed('ControlLeft') || input.justPressed('ControlRight')) {
       this.walkMode = (this.walkMode === 'run') ? 'walk' : 'run';
@@ -175,17 +187,24 @@ export class PlayerController {
     // 简单地面跟随 + 场景碰撞
     const groundH = this.world ? this.world.getGroundHeight(this.position.x, this.position.z) : 0;
     const targetY = groundH + this.currentHeight();
-    // 着陆抖动
-    if (this.position.y > targetY + 0.3) {
-      this.velocity.y = -6; // 重力下落
-      this.position.y += this.velocity.y * dt;
-      if (this.position.y <= targetY) {
-        this.landShake = Math.min(0.4, (this.position.y - targetY) * -0.1 + 0.2);
-        this.position.y = targetY;
-        this.velocity.y = 0;
+
+    // ---- 完整跳跃/重力物理 ----
+    // 1) 每帧施加重力加速度
+    this.velocity.y -= GRAVITY * dt;
+    // 2) 应用 Y 速度到临时新位置
+    const newY = this.position.y + this.velocity.y * dt;
+    // 3) 地面碰撞: 只允许往下落, 不允许穿透
+    if (newY <= targetY) {
+      // 着陆 (从空中落下触发抖动)
+      if (this.velocity.y < 0 && !this.onGround) {
+        this.landShake = Math.min(0.4, Math.abs(this.velocity.y) * 0.04);
       }
+      this.position.y = targetY;
+      this.velocity.y = 0;
+      this.onGround = true;
     } else {
-      this.position.y = damp(this.position.y, targetY, 18, dt);
+      this.position.y = newY;
+      this.onGround = false;
     }
 
     // 场景障碍碰撞(简易球-盒检测), 由 world 处理

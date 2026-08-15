@@ -70,14 +70,23 @@
           <label class="checkbox-line"><input type="checkbox" id="bloom" checked /> 辉光</label>
           <label class="checkbox-line"><input type="checkbox" id="shadows" checked /> 阴影</label>
         </div>
+
+        <div class="panel-section">
+          <h3>音频</h3>
+          <div class="slider-row">
+            <label>主音量 <span id="volumeVal">70</span>%</label>
+            <input type="range" id="masterVolume" min="0" max="100" value="70" step="1" />
+          </div>
+          <label class="checkbox-line"><input type="checkbox" id="muteToggle" /> 静音</label>
+        </div>
       </div>
 
       <button id="startBtn" class="start-btn">开 始 战 斗</button>
 
       <div class="controls-hint">
-        <span>WASD 移动</span><span>Shift 冲刺</span><span>C 蹲下</span>
-        <span>Z 卧倒</span><span>Q/E 探头</span><span>左键 开火</span>
-        <span>右键 瞄准</span><span>Shift(瞄准时) 屏息</span><span>R 换弹</span>
+        <span>WASD 移动</span><span>Space 跳跃</span><span>Shift 冲刺</span>
+        <span>C 蹲下</span><span>Z 卧倒</span><span>Q/E 探头</span>
+        <span>左键 开火</span><span>右键 瞄准</span><span>R 换弹</span>
         <span>F 互动</span><span>G 手雷</span><span>V 小队指令</span><span>T 载具</span>
       </div>
     </div>

@@ -49,7 +49,14 @@ export class AudioManager {
     this.listener = null;
     this.camera = camera;
     this.enabled = false;
-    this.muted = false;
+    // 从 localStorage 读取用户设置 (默认 0.7, 未静音)
+    try {
+      this.muted = localStorage.getItem('sf_muted') === '1';
+      this.volume = parseFloat(localStorage.getItem('sf_volume')) || 0.7;
+    } catch (e) {
+      this.muted = false;
+      this.volume = 0.7;
+    }
     this.buffers = {};
   }
 
@@ -58,10 +65,11 @@ export class AudioManager {
     try {
       this.ctx = new (window.AudioContext || window.webkitAudioContext)();
       this.master = this.ctx.createGain();
-      this.master.gain.value = 0.7;
+      this.master.gain.value = this.muted ? 0 : this.volume;
       this.master.connect(this.ctx.destination);
       this.listener = this.ctx.listener;
       this.enabled = true;
+      console.log('[Audio] ✅ AudioContext 已创建, state=' + this.ctx.state + ', enabled=true, muted=' + this.muted + ', volume=' + this.volume.toFixed(2));
       this._loadAll();
     } catch (e) { console.warn('Audio init failed', e); }
   }
@@ -81,7 +89,21 @@ export class AudioManager {
   }
 
   resume() { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); }
-  setMuted(m) { if (this.master) this.master.gain.value = m ? 0 : 0.7; this.muted = m; }
+
+  // ========== 公开设置 (持久化到 localStorage) ==========
+  setVolume(v) {
+    this.volume = THREE.MathUtils.clamp(v, 0, 1);
+    if (this.master) this.master.gain.value = this.muted ? 0 : this.volume;
+    try { localStorage.setItem('sf_volume', this.volume.toString()); } catch (e) {}
+  }
+  getVolume() { return this.volume; }
+
+  setMuted(m) {
+    this.muted = m;
+    if (this.master) this.master.gain.value = m ? 0 : this.volume;
+    try { localStorage.setItem('sf_muted', m ? '1' : '0'); } catch (e) {}
+  }
+  isMuted() { return this.muted; }
 
   update(dt) {
     if (!this.enabled || !this.listener) return;
@@ -93,13 +115,29 @@ export class AudioManager {
       this.listener.forwardX.value = fwd.x; this.listener.forwardY.value = fwd.y; this.listener.forwardZ.value = fwd.z;
       this.listener.upX.value = 0; this.listener.upY.value = 1; this.listener.upZ.value = 0;
     }
+    // 每秒打印一次加载状态 (只打 1 次, 首次 update)
+    if (!this._statusPrinted) {
+      const keys = Object.keys(this.buffers);
+      const missing = Object.keys(SFX_FILES).filter(k => !this.buffers[k]);
+      console.log('[Audio] 📊 已加载 ' + keys.length + '/' + Object.keys(SFX_FILES).length + ' 个音效, 缺失: [' + missing.join(', ') + ']');
+      console.log('[Audio] 🎛  当前状态: enabled=' + this.enabled + ', muted=' + this.muted + ', masterGain=' + this.master?.gain?.value);
+      this._statusPrinted = true;
+    }
   }
 
   // ========== 通用采样播放器 ==========
   _playSample(bufKey, opts = {}) {
     if (!this.enabled || this.muted) return;
     const buf = this.buffers[bufKey];
-    if (!buf) return;
+    if (!buf) {
+      // buffer 缺失: 首次出现时打印一次, 避免刷屏
+      if (!this._missingReported) this._missingReported = {};
+      if (!this._missingReported[bufKey]) {
+        console.warn('[Audio] buffer 缺失: ' + bufKey + ' (对应文件未加载成功, 检查 audio/ 目录)');
+        this._missingReported[bufKey] = true;
+      }
+      return;
+    }
 
     const ctx = this.ctx;
     const now = ctx.currentTime;
@@ -111,6 +149,13 @@ export class AudioManager {
     const trimEnd = opts.trimEnd ?? 1.0;
     const volume = opts.volume ?? 1.0;
     const attackMs = opts.attackMs ?? 2;
+
+    // 首次播放: 打印命中的 buffer, 便于调试 (只打一次, 每 key)
+    if (!this._playedOnce) this._playedOnce = {};
+    if (!this._playedOnce[bufKey]) {
+      console.log('[Audio] ✓ 播放 ' + bufKey + ' (时长 ' + buf.duration.toFixed(2) + 's, 音量 ' + volume.toFixed(2) + ')');
+      this._playedOnce[bufKey] = true;
+    }
 
     const src = ctx.createBufferSource();
     src.buffer = buf;
