@@ -17,6 +17,8 @@ import { FACTIONS } from '../data/factions.js';
 import { WEAPONS } from '../data/weapons.js';
 import { randPick, randRange, clamp } from '../utils/MathUtils.js';
 import { Tank } from '../world/Tank.js';
+import { log } from '../utils/logger.js';
+const L = log('Game');
 
 export class Game {
   constructor(canvas) {
@@ -62,6 +64,8 @@ export class Game {
     window.addEventListener('keydown', (e) => {
       if (e.key === 'F12') { e.preventDefault(); this._toggleDebugPanel(); }
     });
+
+    L.info('Game created');
   }
 
   _toggleDebugPanel() {
@@ -80,6 +84,7 @@ export class Game {
   _startGame() {
     const sel = this.menu.getSelection();
     const campaign = CAMPAIGNS[sel.campaign];
+    L.info('start campaign=' + sel.campaign + ' faction=' + sel.faction + ' quality=' + sel.quality);
 
     // 渲染器
     if (!this.renderer) {
@@ -174,14 +179,18 @@ export class Game {
     const atkZ = 70, defZ = -70;
     for (let i = 0; i < atkCount; i++) {
       const pos = new THREE.Vector3(randRange(-40,40), 0, atkZ + randRange(-8,8));
-      const s = new Soldier(campaign.attacker, pos, this.world, this.audio, { id: 'atk_' + i });
+      const sid = 'atk_' + i;
+      const s = new Soldier(campaign.attacker, pos, this.world, this.audio, { id: sid });
       this._setupSoldier(s, campaign.attacker, 'advance');
+      L.info('spawn soldier id=' + sid + ' team=' + campaign.attacker + ' pos=' + pos.x.toFixed(0) + ',' + pos.z.toFixed(0));
     }
     for (let i = 0; i < defCount; i++) {
       const pos = new THREE.Vector3(randRange(-50,50), 0, defZ + randRange(-8,8));
-      const s = new Soldier(campaign.defender, pos, this.world, this.audio, { id: 'def_' + i });
+      const sid = 'def_' + i;
+      const s = new Soldier(campaign.defender, pos, this.world, this.audio, { id: sid });
       // 防守方: 无敌人时在据点附近巡逻; 有任务进攻时再 advance
       this._setupSoldier(s, campaign.defender, 'patrol');
+      L.info('spawn soldier id=' + sid + ' team=' + campaign.defender + ' pos=' + pos.x.toFixed(0) + ',' + pos.z.toFixed(0));
     }
 
     // 注入到世界
@@ -245,7 +254,9 @@ export class Game {
     // FPS
     this.fpsFrames++; this.fpsTime += dt;
     if (this.fpsTime >= 0.5) {
-      this.hud.setFPS(this.fpsFrames / this.fpsTime);
+      const fps = Math.round(this.fpsFrames / this.fpsTime);
+      this.hud.setFPS(fps);
+      L.debug('fps=' + fps + ' entities=' + (this.soldiers.length + this.tanks.length));
       this.fpsFrames = 0; this.fpsTime = 0;
     }
 
@@ -408,9 +419,10 @@ export class Game {
     }
   }
 
-  _onSoldierDeath(soldier) {
+  _onSoldierDeath(soldier, killer = null) {
     if (soldier.team === this.attackerTeam) this.tickets.attacker--;
     else this.tickets.defender--;
+    L.info('soldier died id=' + (soldier.id || 'player') + ' team=' + soldier.team + ' killer=' + (killer?.team || '?') + ' tickets=' + JSON.stringify(this.tickets));
   }
 
   // ========== 胜负 ==========
@@ -428,6 +440,7 @@ export class Game {
 
   _endGame(result) {
     this.state = result;
+    L.info('state=' + result);
     this.input.exitPointerLock();
     this.hud.showToast(result === 'victory' ? '胜 利!' : '失 败', 999);
     setTimeout(() => {
@@ -454,10 +467,12 @@ export class Game {
   _togglePause(p) {
     if (p && this.state === 'playing') {
       this.state = 'paused';
+      L.info('state=paused');
       this.hud.showPause();
       this.input.exitPointerLock();
     } else if (!p && this.state === 'paused') {
       this.state = 'playing';
+      L.info('state=resumed');
       this.hud.hidePause();
       this.input.requestPointerLock();
       this.lastTime = performance.now();

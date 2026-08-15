@@ -7,6 +7,8 @@
 import * as THREE from 'three';
 import { FACTIONS } from '../data/factions.js';
 import { clamp, damp, smoothAngle, randRange } from '../utils/MathUtils.js';
+import { log } from '../utils/logger.js';
+const L = log('Tank');
 
 export class Tank {
   constructor(factionId, position, world, audio) {
@@ -180,6 +182,7 @@ export class Tank {
 
   _fire(target = null) {
     this.lastFireTime = performance.now() / 1000;
+    L.debug('tank fire type=shell target=' + (target?.name || target?.team || this.driver ? 'player' : '?'));
     const muzzle = this.mesh.userData.muzzle;
     const origin = new THREE.Vector3();
     muzzle.getWorldPosition(origin);
@@ -222,6 +225,7 @@ export class Tank {
     else armorMul = 1.0;                   // 后面
     const dmg = amount * armorMul;
     this.health -= dmg;
+    L.warn('tank hit dmg=' + dmg.toFixed(0) + ' hp=' + this.health.toFixed(0) + ' from=' + (attacker?.name || attacker?.team || '?'));
     if (this.health <= 0) {
       this._die();
       return true;
@@ -248,6 +252,7 @@ export class Tank {
   _die() {
     this.alive = false;
     this.deathTime = performance.now() / 1000;
+    L.error('TANK DESTROYED pos=' + this.position.x.toFixed(0) + ',' + this.position.z.toFixed(0));
     // 爆炸
     if (this.audio) this.audio.explosion(this.position, 1.5);
     // 驱逐驾驶员

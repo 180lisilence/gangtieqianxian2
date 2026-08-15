@@ -8,6 +8,8 @@ import * as THREE from 'three';
 import { WEAPONS } from '../data/weapons.js';
 import { clamp, randRange, damp } from '../utils/MathUtils.js';
 import { createWeaponModel } from './WeaponFactory.js';
+import { log } from '../utils/logger.js';
+const L = log('Weapon');
 
 const MAX_BULLET_DIST = 800;
 const BULLET_STEP = 4;        // 射线分段步长(米)
@@ -98,6 +100,7 @@ export class WeaponSystem {
     this.semiLatch = false;
     this.player.setWeaponZoom(this.current.zoom || 1.6);
     this._updateViewmodel();
+    L.info('switch to ' + this.current.type + ' (' + this.current.id + ')');
     if (this.hud) this.hud.updateWeapon(this.current, this.getAmmo());
   }
 
@@ -197,6 +200,7 @@ export class WeaponSystem {
   _fire(now) {
     const w = this.current;
     const ammo = this.getAmmo();
+    L.debug('fire type=' + w.type + ' mag=' + (ammo.mag - 1) + '/' + w.magSize);
     ammo.mag--;
     this.lastShotTime = now;
     this.fireCooldown = w.auto ? (60 / w.fireRate) : (w.type === 'rifle' || w.type === 'sniper' ? 0.9 : 0.12);
@@ -349,6 +353,7 @@ export class WeaponSystem {
     const take = Math.min(need, ammo.reserve);
     ammo.mag += take; ammo.reserve -= take;
     this.reloading = false;
+    L.info('reload ' + w.id + ' finish, mag=' + ammo.mag + ' reserve=' + ammo.reserve);
     if (this.hud) { this.hud.showReload(false); this.hud.updateAmmo(ammo); }
   }
 

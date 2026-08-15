@@ -4,6 +4,8 @@
 // 文件未就绪时静默跳过
 
 import * as THREE from 'three';
+import { log } from '../utils/logger.js';
+const L = log('Audio');
 
 // ======================================================
 // 音效文件表 —— 改文件名只改这里就行
@@ -69,22 +71,30 @@ export class AudioManager {
       this.master.connect(this.ctx.destination);
       this.listener = this.ctx.listener;
       this.enabled = true;
-      console.log('[Audio] ✅ AudioContext 已创建, state=' + this.ctx.state + ', enabled=true, muted=' + this.muted + ', volume=' + this.volume.toFixed(2));
+      L.info('AudioContext created, state=' + this.ctx.state + ', muted=' + this.muted + ', volume=' + this.volume.toFixed(2));
       this._loadAll();
-    } catch (e) { console.warn('Audio init failed', e); }
+    } catch (e) { L.error('Audio init failed', e); }
   }
 
   // 批量异步加载所有音效
   _loadAll() {
+    const total = Object.keys(SFX_FILES).length;
+    let loaded = 0, failed = 0;
     Object.entries(SFX_FILES).forEach(([key, fpath]) => {
       fetch('./' + fpath)
         .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
         .then(buf => this.ctx.decodeAudioData(buf.slice(0)))
         .then(ab => {
           this.buffers[key] = ab;
-          console.log('[Audio] ✓ ' + fpath + ' (' + ab.duration.toFixed(2) + 's)');
+          loaded++;
+          L.debug('loaded ' + fpath + ' (' + ab.duration.toFixed(2) + 's)');
+          if (loaded + failed === total) L.info('load done ' + loaded + '/' + total + ' ok');
         })
-        .catch(e => { /* 文件不存在 -> 静默, 不刷屏 */ });
+        .catch(e => {
+          failed++;
+          L.debug('failed ' + fpath + ': ' + e.message);
+          if (loaded + failed === total) L.info('load done ' + loaded + '/' + total + ' ok');
+        });
     });
   }
 
@@ -119,8 +129,8 @@ export class AudioManager {
     if (!this._statusPrinted) {
       const keys = Object.keys(this.buffers);
       const missing = Object.keys(SFX_FILES).filter(k => !this.buffers[k]);
-      console.log('[Audio] 📊 已加载 ' + keys.length + '/' + Object.keys(SFX_FILES).length + ' 个音效, 缺失: [' + missing.join(', ') + ']');
-      console.log('[Audio] 🎛  当前状态: enabled=' + this.enabled + ', muted=' + this.muted + ', masterGain=' + this.master?.gain?.value);
+      L.info('loaded ' + keys.length + '/' + Object.keys(SFX_FILES).length + ' sfx, missing=[' + missing.join(', ') + ']');
+      L.debug('state: enabled=' + this.enabled + ', muted=' + this.muted + ', masterGain=' + this.master?.gain?.value);
       this._statusPrinted = true;
     }
   }
@@ -133,7 +143,7 @@ export class AudioManager {
       // buffer 缺失: 首次出现时打印一次, 避免刷屏
       if (!this._missingReported) this._missingReported = {};
       if (!this._missingReported[bufKey]) {
-        console.warn('[Audio] buffer 缺失: ' + bufKey + ' (对应文件未加载成功, 检查 audio/ 目录)');
+        L.warn('buffer missing: ' + bufKey + ' (check audio/ directory)');
         this._missingReported[bufKey] = true;
       }
       return;
@@ -153,7 +163,7 @@ export class AudioManager {
     // 首次播放: 打印命中的 buffer, 便于调试 (只打一次, 每 key)
     if (!this._playedOnce) this._playedOnce = {};
     if (!this._playedOnce[bufKey]) {
-      console.log('[Audio] ✓ 播放 ' + bufKey + ' (时长 ' + buf.duration.toFixed(2) + 's, 音量 ' + volume.toFixed(2) + ')');
+      L.debug('play ' + bufKey + ' (dur ' + buf.duration.toFixed(2) + 's, vol ' + volume.toFixed(2) + ')');
       this._playedOnce[bufKey] = true;
     }
 

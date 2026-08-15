@@ -9,6 +9,8 @@ import { FACTIONS } from '../data/factions.js';
 import { WEAPONS } from '../data/weapons.js';
 import { clamp, randRange, smoothAngle, randPick, damp } from '../utils/MathUtils.js';
 import { createSimpleRifle } from '../player/WeaponFactory.js';
+import { log } from '../utils/logger.js';
+const L = log('Soldier');
 
 const STAND_H = 1.75;
 
@@ -184,16 +186,17 @@ export class Soldier {
     }
     if (this.health <= 0) {
       this.health = 0;     // 夹住, 防止多次扣血/多次扣票
-      this.die(dir);
+      this.die(dir, attacker);
       return true;
     }
     return false;
   }
 
-  die(dir) {
+  die(dir, killer = null) {
     if (!this.alive) return;
     this.alive = false;
     this.deathTime = performance.now() / 1000;
+    L.warn('soldier ' + this.id + ' DIED, team=' + this.team + ' killed by ' + (killer?.id || killer?.team || '?'));
     // 布娃娃简化: 随机翻倒
     const fallDir = dir ? dir.clone() : new THREE.Vector3(randRange(-1,1),0,randRange(-1,1));
     this._fallDir = fallDir;
@@ -213,6 +216,7 @@ export class Soldier {
   }
 
   _think() {
+    const oldState = this.state;
     // 寻找目标
     const enemy = this._findEnemy();
     if (enemy) {
@@ -238,6 +242,13 @@ export class Soldier {
       } else {
         this.state = 'engage';
       }
+      if (this.state !== oldState) {
+        L.debug('soldier ' + this.id + ': ' + oldState + ' → ' + this.state);
+        if (this.state === 'engage' && this.target) {
+          const dist = this._distTo(this.target);
+          L.info('soldier ' + this.id + ' engaging target ' + (this.target.id || 'player') + ' dist=' + dist.toFixed(1));
+        }
+      }
       return;
     }
 
@@ -249,6 +260,7 @@ export class Soldier {
           ? this.lastSeenTargetPos.clone().add(new THREE.Vector3(randRange(-10,10),0,randRange(-10,10)))
           : this.lastSeenTargetPos.clone();
       }
+      if (this.state !== oldState) L.debug('soldier ' + this.id + ': ' + oldState + ' → ' + this.state);
       return;
     }
 
@@ -256,10 +268,12 @@ export class Soldier {
     if (this.squadOrder === 'advance' && this.world.objectives) {
       this.state = 'advance';
       if (!this.moveTarget) this.moveTarget = this._objectivePos();
+      if (this.state !== oldState) L.debug('soldier ' + this.id + ': ' + oldState + ' → ' + this.state);
       return;
     }
     if (this.squadOrder === 'hold') {
       this.state = 'hold';
+      if (this.state !== oldState) L.debug('soldier ' + this.id + ': ' + oldState + ' → ' + this.state);
       return;
     }
 
@@ -271,6 +285,7 @@ export class Soldier {
       this.state = 'patrol';
       this._patrolIdx = 0;
       this.moveTarget = this._patrolPoints[0].clone();
+      if (this.state !== oldState) L.debug('soldier ' + this.id + ': ' + oldState + ' → ' + this.state);
     }
   }
 
@@ -502,6 +517,7 @@ export class Soldier {
         const headshot = hit.headshot;
         const dmg = w.damage * (headshot ? 2.2 : (hit.limb ? 0.65 : 1));
         const killed = hit.soldier.takeDamage(dmg, dir, headshot, this);
+        L.debug('soldier ' + this.id + ' hit ' + (hit.soldier.id || 'player') + ' dmg=' + dmg.toFixed(0) + ' killed=' + killed);
         if (this.onFire) this.onFire('hit', hit.soldier, killed);
         if (killed && this.onKill) this.onKill(hit.soldier, this);
       }

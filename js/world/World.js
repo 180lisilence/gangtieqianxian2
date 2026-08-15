@@ -10,6 +10,8 @@
 import * as THREE from 'three';
 import { ValueNoise, RNG, clamp, randRange, randInt, randPick } from '../utils/MathUtils.js';
 import { CAMPAIGNS } from '../data/campaigns.js';
+import { log } from '../utils/logger.js';
+const L = log('World');
 
 const MAP_SIZE = 200;       // 地图边长(米)
 const TERRAIN_SEG = 128;    // 地形分段
@@ -68,6 +70,8 @@ export class World {
     this._buildSky();
 
     this.onFootstep = null;
+
+    L.info('World generated, terrain=' + this._terrainSeg + 'x' + this._terrainSeg + ' props=' + this.obstacles.length);
   }
 
   // ========== 环境(光照/雾) ==========
@@ -1081,8 +1085,10 @@ export class World {
 
     // 2. 地形通行性限制: 水面 / 陡崖 禁行, 自动推回最近可通行点
     if (!this.isWalkable(pos.x, pos.z)) {
+      const oldX = pos.x, oldZ = pos.z;
       const pt = this.findNearestWalkable(pos.x, pos.z);
       pos.x = pt.x; pos.z = pt.z;
+      L.debug('push collidePlayer from (' + oldX.toFixed(0) + ',' + oldZ.toFixed(0) + ') → (' + pt.x.toFixed(0) + ',' + pt.z.toFixed(0) + ')');
     }
 
     // 3. 地图硬边界

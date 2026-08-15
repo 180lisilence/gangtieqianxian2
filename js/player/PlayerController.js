@@ -8,6 +8,8 @@
 
 import * as THREE from 'three';
 import { clamp, damp, lerp, deg2rad } from '../utils/MathUtils.js';
+import { log } from '../utils/logger.js';
+const L = log('Player');
 
 const STAND_HEIGHT = 1.7;
 const CROUCH_HEIGHT = 1.1;
@@ -124,6 +126,7 @@ export class PlayerController {
     if (input.justPressed('Space') && this.onGround && this.stance === 'stand') {
       this.velocity.y = JUMP_VELOCITY;
       this.onGround = false;
+      L.debug('jump vy=' + JUMP_VELOCITY);
     }
 
     // 走路/疾跑模式切换 (Ctrl)
@@ -298,7 +301,7 @@ export class PlayerController {
   setWeaponZoom(z) { this._weaponZoom = z; }
 
   // ========== 受伤 ==========
-  takeDamage(amount, fromPos, headshot = false) {
+  takeDamage(amount, dir, headshot = false, attacker = null) {
     if (!this.alive) return;
     let dmg = amount;
     if (this.armor > 0) {
@@ -307,10 +310,12 @@ export class PlayerController {
       dmg -= absorbed;
     }
     this.health -= dmg;
+    L.info('player take dmg=' + dmg + ' from=' + (attacker?.name || attacker?.team || '?') + ' hp=' + this.health.toFixed(0) + '/100');
     if (this.onDamage) this.onDamage(this.health, this.armor, headshot);
     if (this.health <= 0) {
       this.health = 0; this.alive = false;
-      if (this.onDeath) this.onDeath(fromPos);
+      L.warn('PLAYER DIED');
+      if (this.onDeath) this.onDeath(attacker);
     }
   }
 
