@@ -1,0 +1,68 @@
+{
+  "name": "steel-frontline",
+  "version": "1.0.0",
+  "description": "钢铁前线 · 狙击 — 二战 FPS",
+  "author": "Steel Frontline",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win",
+    "dist:portable": "electron-builder --win portable",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "three": "0.160.0"
+  },
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.3",
+    "jsdom": "^30.0.1",
+    "vitest": "^4.1.10"
+  },
+  "build": {
+    "appId": "com.steelfrontline.sniper",
+    "productName": "钢铁前线",
+    "asar": false,
+    "directories": {
+      "output": "dist5"
+    },
+    "files": [
+      "index.html",
+      "audio/**/*",
+      "css/**/*",
+      "js/**/*",
+      "electron/**/*",
+      "node_modules/three/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "钢铁前线",
+      "artifactName": "钢铁前线-${version}-安装版-${arch}.${ext}"
+    },
+    "portable": {
+      "artifactName": "钢铁前线-${version}-便携版-${arch}.${ext}"
+    }
+  }
+}

@@ -1,0 +1,49 @@
+# ========== Node.js ==========
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npmrc.local
+
+# ========== Electron 打包产物 ==========
+dist/
+dist2/
+dist3/
+dist4/
+dist5/
+out/
+release/
+*.exe
+*.blockmap
+*.yml
+
+# ========== Java Launcher ==========
+launcher/target/
+launcher/*.iml
+launcher/.idea/
+
+# ========== 二进制音频资源 (用户自备, 不属于源代码) ==========
+audio/**/*.mp3
+audio/**/*.wav
+audio/**/*.ogg
+
+# ========== 构建 ==========
+*.class
+*.jar
+*.log
+.DS_Store
+Thumbs.db
+
+# ========== 编辑器 ==========
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ========== 临时文件 ==========
+tmp/
+temp/
+.cache/
+.vitest/
+coverage/

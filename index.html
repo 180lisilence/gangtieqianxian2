@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>钢铁前线 · 狙击</title>
+<link rel="stylesheet" href="css/style.css" />
+<!-- Three.js 通过 importmap 以 ES Module 方式加载 -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "./node_modules/three/build/three.module.js",
+    "three/addons/": "./node_modules/three/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+  <!-- 加载遮罩 -->
+  <div id="loadingScreen">
+    <div class="loading-content">
+      <h1>钢铁前线</h1>
+      <div class="loading-bar"><div id="loadingFill"></div></div>
+      <div id="loadingText">正在初始化引擎...</div>
+    </div>
+  </div>
+
+  <!-- 主菜单 -->
+  <div id="mainMenu" class="hidden">
+    <div class="menu-bg"></div>
+    <div class="menu-container">
+      <h1 class="game-title">钢铁前线</h1>
+      <p class="game-subtitle">STEEL FRONTLINE · 二战写实 FPS</p>
+
+      <div class="menu-panel">
+        <div class="panel-section">
+          <h3>选择战役</h3>
+          <div id="campaignList" class="list-grid"></div>
+        </div>
+
+        <div class="panel-section">
+          <h3>选择阵营</h3>
+          <div id="factionList" class="list-grid"></div>
+        </div>
+
+        <div class="panel-section">
+          <h3>主武器</h3>
+          <div id="primaryWeaponList" class="list-grid"></div>
+        </div>
+
+        <div class="panel-section">
+          <h3>副武器</h3>
+          <div id="secondaryWeaponList" class="list-grid"></div>
+        </div>
+
+        <div class="panel-section">
+          <h3>投掷物</h3>
+          <div id="grenadeList" class="list-grid"></div>
+        </div>
+
+        <div class="panel-section">
+          <h3>画质</h3>
+          <select id="qualitySelect">
+            <option value="low">低（高帧率）</option>
+            <option value="medium" selected>中</option>
+            <option value="high">高（写实）</option>
+            <option value="ultra">极致</option>
+          </select>
+          <label class="checkbox-line"><input type="checkbox" id="motionBlur" /> 动态模糊</label>
+          <label class="checkbox-line"><input type="checkbox" id="bloom" checked /> 辉光</label>
+          <label class="checkbox-line"><input type="checkbox" id="shadows" checked /> 阴影</label>
+        </div>
+      </div>
+
+      <button id="startBtn" class="start-btn">开 始 战 斗</button>
+
+      <div class="controls-hint">
+        <span>WASD 移动</span><span>Shift 冲刺</span><span>C 蹲下</span>
+        <span>Z 卧倒</span><span>Q/E 探头</span><span>左键 开火</span>
+        <span>右键 瞄准</span><span>Shift(瞄准时) 屏息</span><span>R 换弹</span>
+        <span>F 互动</span><span>G 手雷</span><span>V 小队指令</span><span>T 载具</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 游戏 HUD -->
+  <div id="gameHUD" class="hidden">
+    <!-- 准星 -->
+    <div id="crosshair">
+      <div class="ch-line ch-top"></div>
+      <div class="ch-line ch-bottom"></div>
+      <div class="ch-line ch-left"></div>
+      <div class="ch-line ch-right"></div>
+      <div class="ch-dot"></div>
+    </div>
+
+    <!-- 命中标记 -->
+    <div id="hitMarker" class="hidden"></div>
+
+    <!-- 血量护甲 -->
+    <div id="vitals">
+      <div class="vital-row">
+        <span class="vital-icon">HP</span>
+        <div class="vital-bar"><div id="healthFill" class="vital-fill hp"></div></div>
+        <span id="healthText">100</span>
+      </div>
+      <div class="vital-row">
+        <span class="vital-icon">AR</span>
+        <div class="vital-bar"><div id="armorFill" class="vital-fill ar"></div></div>
+        <span id="armorText">100</span>
+      </div>
+
+      <!-- 走路/疾跑状态图标 -->
+      <div id="walkModeIcon" class="mode-icon run">
+        <div class="mi-badge">
+          <div class="mi-run-icon">
+            <div class="mi-figure"></div>
+            <div class="mi-line"></div>
+          </div>
+          <div class="mi-label">疾跑</div>
+        </div>
+        <div class="mi-hint">Ctrl 切换</div>
+      </div>
+    </div>
+
+    <!-- 弹药 -->
+    <div id="ammoDisplay">
+      <div id="weaponName">--</div>
+      <div id="ammoCount"><span id="ammoMag">0</span> / <span id="ammoReserve">0</span></div>
+      <div id="fireMode">SEMI</div>
+    </div>
+
+    <!-- 小地图 -->
+    <canvas id="minimap" width="200" height="200"></canvas>
+
+    <!-- 占点进度 -->
+    <div id="objectivePanel">
+      <div id="objectiveName">据点 A</div>
+      <div class="cap-bar"><div id="capFill"></div></div>
+      <div id="capStatus">争夺中</div>
+    </div>
+
+    <!-- 击杀信息 -->
+    <div id="killFeed"></div>
+
+    <!-- 小队指令提示 -->
+    <div id="squadOrder" class="hidden"></div>
+
+    <!-- 中心提示（互动/占点等） -->
+    <div id="centerToast" class="hidden"></div>
+
+    <!-- 死亡画面 -->
+    <div id="deathScreen" class="hidden">
+      <h2>你已阵亡</h2>
+      <p id="killedBy"></p>
+      <button id="respawnBtn">重 生</button>
+    </div>
+
+    <!-- 暂停菜单 -->
+    <div id="pauseMenu" class="hidden">
+      <h2>已暂停</h2>
+      <button id="resumeBtn">继 续</button>
+      <button id="quitBtn">返回主菜单</button>
+    </div>
+
+    <!-- 画质帧率 -->
+    <div id="fpsCounter">-- FPS</div>
+
+    <!-- 🔍 调试悬浮窗 (F12 切换显示/隐藏) -->
+    <div id="debugPanel">
+      <div class="dp-header">
+        <span>🔧 调试面板</span>
+        <span class="dp-hint">F12 切换</span>
+      </div>
+      <div id="dpContent">初始化...</div>
+    </div>
+  </div>
+
+  <!-- 主游戏脚本 -->
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
